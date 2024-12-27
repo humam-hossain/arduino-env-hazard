@@ -1,45 +1,58 @@
 import re
-from django.http import HttpResponse
-from django.views.decorators.csrf import csrf_exempt
+from rest_framework import status
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from django.core.exceptions import ValidationError
 from .models import SensorData
+from .serializer import SensorDataSerializer
 
 # Create your views here.
+@api_view(['GET'])
 def get_data(request):
-    if request.method == 'GET':
-        try:    
-            latest_data = SensorData.objects.last()
-            data = (
-                f"timestamp:{latest_data.timestamp} "
-                f"t:{latest_data.t} "
-                f"samples:{latest_data.samples} "
-                f"r[25um]:{latest_data.r_25um} "
-                f"ug/m3[25um]:{latest_data.ugm3_25um} "
-                f"pcs[25um]:{latest_data.pcs_25um} "
-                f"r[1um]:{latest_data.r_1um} "
-                f"ug/m3[1um]:{latest_data.ugm3_1um} "
-                f"pcs[1um]:{latest_data.pcs_1um}"
-            )
-            return HttpResponse(data, content_type="text/plain", status=200)
-        except SensorData.DoesNotExist:
-            return HttpResponse("ERROR", content_type="text/plain", status=404)
-    return HttpResponse("INVALID", content_type="text/plain", status=400)
-
-@csrf_exempt
+    try:
+        data = SensorData.objects.all()
+        serialized_data = SensorDataSerializer(data, many=True).data
+        
+        return Response(serialized_data, status=status.HTTP_200_OK)
+    
+    except SensorData.DoesNotExist:
+        return Response("[ERROR] Data not found", status=status.HTTP_404_NOT_FOUND)
+    except ValidationError as e:
+        return Response(f"[ERROR] validation error: {str(e)}", status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response(f"[ERROR] an unexpected error occured: {str(e)}", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['POST'])
 def post_data(request):
-    if request.method == 'POST':
-        try:
-            body = request.body.decode('utf-8')
-            
-            pattern = r"([\w_]+):([-+]?\d*\.?\d+)"
-            pairs = re.findall(pattern, body)
-            
-            data = {key: float(value) if '.' in value else int(value) for key, value in pairs}
+    try:
+        body = request.body.decode('utf-8')
+
+        pattern = r"([\w_]+):([-+]?\d*\.?\d+)"
+        pairs = re.findall(pattern, body)
+
+        data = {key: float(value) if '.' in value else int(value) for key, value in pairs}
+        if "ugm3_25um" in data:
             data["ugm3_25um"] *= 1000
+        if "ugm3_1um" in data:
             data["ugm3_1um"] *= 1000
-            
-            # print(data)
-            SensorData.objects.create(**data)
-            
-            return HttpResponse("SUCCESS", content_type="text/plain", status=200)
-        except Exception:
-            return HttpResponse("ERROR", content_type="text/plain", status=400)
+
+        # print(data)
+        serializer = SensorDataSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response("[SUCCESS]", status=status.HTTP_201_CREATED)
+        return Response(f"[ERROR] Validation Failed: {serializer.errors}", status=status.HTTP_400_BAD_REQUEST)
+    except ValidationError as e:
+        return Response(f"[ERROR] Validation error: {str(e)}", status=status.HTTP_400_BAD_REQUEST)
+
+    except UnicodeDecodeError as e:
+        return Response(f"[ERROR] Unable to decode request body: {str(e)}", status=status.HTTP_400_BAD_REQUEST)
+
+    except KeyError as e:
+        return Response(f"[ERROR] Missing required key: {str(e)}", status=status.HTTP_400_BAD_REQUEST)
+
+    except TypeError as e:
+        return Response(f"[ERROR] Type error in data: {str(e)}", status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:
+        return Response(f"[ERROR] An unexpected error occurred: {str(e)}", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
