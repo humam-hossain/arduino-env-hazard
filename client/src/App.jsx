@@ -11,7 +11,7 @@ const App = () => {
 
   const getSensorData = async() =>{
     try {
-      const response = await fetch("http://192.168.0.101:8000/api/get-data/")
+      const response = await fetch("http://192.168.0.100:8000/api/get-data/")
       const data = await response.json()
       // console.log(data)
       setSensorData(data)
@@ -42,14 +42,19 @@ const App = () => {
       <h1>Sensor Data</h1>
       <LineChart width={1600} height={800} data={sensorData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="id" />
+        <XAxis dataKey="timestamp" />
         <YAxis />
         <Tooltip />
         <Legend />
 
-        {headers.map((header, index) => {
+        <Line type="monotone" dataKey="temp" stroke={colorPalette[0]} dot={false}/>
+        <Line type="monotone" dataKey="humidity" stroke={colorPalette[1]} dot={false}/>
+        <Line type="monotone" dataKey="flame" stroke={colorPalette[2]} dot={false}/>
+        
+
+        {/* {headers.map((header, index) => {
           return <Line type="monotone" dataKey={header} stroke={colorPalette[index]} key={index}/>
-        })}
+        })} */}
 
       </LineChart>
     </>
