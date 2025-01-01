@@ -11,13 +11,13 @@
 #define TYPE_MQ5 "MQ-5"             //MQ5
 #define RatioMQ5CleanAir 6.5        //RS / R0 = 6.5 ppm
 
-#define PIN_MQ8 A1                  //Analog input 1 of your arduino
-#define TYPE_MQ8 "MQ-8"             //MQ8
-#define RatioMQ8CleanAir 70         //RS / R0 = 70 ppm 
-
-#define PIN_MQ7 A2                  //Analog input 2 of your arduino
+#define PIN_MQ7 A1                  //Analog input 1 of your arduino
 #define TYPE_MQ7 "MQ-7"             //MQ7
 #define RatioMQ7CleanAir 27.5       //RS / R0 = 27.5 ppm
+
+#define PIN_MQ8 A2                  //Analog input 2 of your arduino
+#define TYPE_MQ8 "MQ-8"             //MQ8
+#define RatioMQ8CleanAir 70         //RS / R0 = 70 ppm 
 
 #define PIN_MQ135 A3                //Analog input 3 of your arduino
 #define TYPE_MQ135 "MQ-135"         //MQ135
@@ -242,14 +242,9 @@ void setup() {
 
   setupESP8266();
 
-/*
   // setup gas sensors
-  MQ5.setRegressionMethod(1); //_PPM =  a*ratio^b
-  MQ8.setRegressionMethod(1); //_PPM =  a*ratio^b
-  MQ7.setRegressionMethod(1); //_PPM =  a*ratio^b
-  MQ135.setRegressionMethod(1); //_PPM =  a*ratio^b
-
   //MQ5
+  MQ5.setRegressionMethod(1); //_PPM =  a*ratio^b
   MQ5.setA(80.897); MQ5.setB(-2.431); // Configure the equation to to calculate H2 concentration
 
   //   Exponential regression:
@@ -271,35 +266,11 @@ void setup() {
   }
   MQ5.setR0(calcR0/10);
   Serial.println("  done!.");
-  if(isinf(calcR0)) {Serial.println("Warning: Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
-  if(calcR0 == 0){Serial.println("Warning: Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
-
-  //MQ8
-  MQ8.setA(976.97); MQ8.setB(-0.688); // Configure the equation to to calculate H2 concentration
-  
-  //   Exponential regression:
-  // GAS     | a      | b
-  // H2      | 976.97  | -0.688
-  // LPG     | 10000000 | -3.123
-  // CH4     | 80000000000000 | -6.666
-  // CO      | 2000000000000000000 | -8.074
-  // Alcohol | 76101 | -1.86
-  
-  MQ8.init();
-  Serial.print("Calibrating please wait.");
-  float calcR01 = 0;
-  for(int i = 1; i<=10; i ++)
-  {
-    MQ8.update(); // Update data, the arduino will read the voltage from the analog pin
-    calcR01 += MQ8.calibrate(RatioMQ8CleanAir);
-    Serial.print(".");
-  }
-  MQ8.setR0(calcR01/10);
-  Serial.println("  done!.");
-  if(isinf(calcR01)) {Serial.println("Warning: Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
-  if(calcR01 == 0){Serial.println("Warning: Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
+  if(isinf(calcR0)) {Serial.println("[WARNING] Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
+  if(calcR0 == 0){Serial.println("[WARNING] Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
 
   //MQ7
+  MQ7.setRegressionMethod(1); //_PPM =  a*ratio^b
   MQ7.setA(99.042); MQ7.setB(-1.518); // Configure the equation to calculate CO concentration value
 
   //   Exponential regression:
@@ -321,10 +292,48 @@ void setup() {
   }
   MQ7.setR0(calcR02/10);
   Serial.println("  done!.");
-  if(isinf(calcR02)) {Serial.println("Warning: Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
-  if(calcR02 == 0){Serial.println("Warning: Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
+  if(isinf(calcR02)) {Serial.println("[WARNING] Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
+  if(calcR02 == 0){Serial.println("[WARNING] Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
+
+  //MQ8
+  MQ8.setRegressionMethod(1); //_PPM =  a*ratio^b
+  MQ8.setA(976.97); MQ8.setB(-0.688); // Configure the equation to to calculate H2 concentration
   
+  //   Exponential regression:
+  // GAS     | a      | b
+  // H2      | 976.97  | -0.688
+  // LPG     | 10000000 | -3.123
+  // CH4     | 80000000000000 | -6.666
+  // CO      | 2000000000000000000 | -8.074
+  // Alcohol | 76101 | -1.86
+  
+  MQ8.init();
+  Serial.print("Calibrating please wait.");
+  float calcR01 = 0;
+  for(int i = 1; i<=10; i ++)
+  {
+    MQ8.update(); // Update data, the arduino will read the voltage from the analog pin
+    calcR01 += MQ8.calibrate(RatioMQ8CleanAir);
+    Serial.print(".");
+  }
+  MQ8.setR0(calcR01/10);
+  Serial.println("  done!.");
+  if(isinf(calcR01)) {Serial.println("[WARNING] Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
+  if(calcR01 == 0){Serial.println("[WARNING] Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
+  
+
   //MQ135
+  MQ135.setRegressionMethod(1); //_PPM =  a*ratio^b
+  MQ135.setA(102.2 ); MQ135.setB(-2.473);
+  // Exponential regression:
+  // GAS      | a      | b
+  // CO       | 605.18 | -3.937  
+  // Alcohol  | 77.255 | -3.18 
+  // CO2      | 110.47 | -2.862
+  // Toluen  | 44.947 | -3.445
+  // NH4      | 102.2  | -2.473
+  // Aceton  | 34.668 | -3.369
+  
   MQ135.init(); 
   Serial.print("Calibrating please wait.");
   float calcR03 = 0;
@@ -337,18 +346,10 @@ void setup() {
   MQ135.setR0(calcR03/10);
   Serial.println("  done!.");
   
-  if(isinf(calcR03)) {Serial.println("Warning: Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
-  if(calcR03 == 0){Serial.println("Warning: Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
+  if(isinf(calcR03)) {Serial.println("[WARNING] Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
+  if(calcR03 == 0){Serial.println("[WARNING] Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
 
-  // Exponential regression:
-  // GAS      | a      | b
-  // CO       | 605.18 | -3.937  
-  // Alcohol  | 77.255 | -3.18 
-  // CO2      | 110.47 | -2.862
-  // Toluen  | 44.947 | -3.445
-  // NH4      | 102.2  | -2.473
-  // Aceton  | 34.668 | -3.369
-*/
+
   // DHT Setup
   Serial.println(F("DHT test!"));
   dht.begin();
@@ -372,57 +373,30 @@ void loop() {
 
   payload = "humidity:" + String(h) + " temp:" + String(t) + " ";
 
-/*
-  //MQ5
-  MQ5.update(); // Update data, the arduino will read the voltage from the analog pin
-  Serial.print("MQ5_LPG:");
-  Serial.print(MQ5.readSensor()); // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
-  Serial.print(" ");
-  //MQ8
-  MQ8.update(); // Update data, the arduino will read the voltage from the analog pin
-  Serial.print("MQ8_H2:");
-  Serial.print(MQ8.readSensor()); // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
-  Serial.print(" ");
-  //MQ7
-  MQ7.update(); // Update data, the arduino will read the voltage from the analog pin
-  Serial.print("MQ7_CO:");
-  Serial.print(MQ7.readSensor());// Sensor will read PPM concentration using the model, a and b values set previously or from the setup
-  Serial.print(" ");
-  //MQ135
-  MQ135.update(); // Update data, the arduino will read the voltage from the analog pin
-
-  MQ135.setA(605.18); MQ135.setB(-3.937); // Configure the equation to calculate CO concentration value
-  float CO = MQ135.readSensor(); // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
-
-  MQ135.setA(77.255); MQ135.setB(-3.18); //Configure the equation to calculate Alcohol concentration value
-  float Alcohol = MQ135.readSensor(); // SSensor will read PPM concentration using the model, a and b values set previously or from the setup
-
-  MQ135.setA(110.47); MQ135.setB(-2.862); // Configure the equation to calculate CO2 concentration value
-  float CO2 = MQ135.readSensor(); // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
-
-  MQ135.setA(44.947); MQ135.setB(-3.445); // Configure the equation to calculate Toluen concentration value
-  float Toluen = MQ135.readSensor(); // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
-  
-  MQ135.setA(102.2 ); MQ135.setB(-2.473); // Configure the equation to calculate NH4 concentration value
-  float NH4 = MQ135.readSensor(); // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
-
-  MQ135.setA(34.668); MQ135.setB(-3.369); // Configure the equation to calculate Aceton concentration value
-  float Aceton = MQ135.readSensor(); // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
-  
-  Serial.print("MQ135_CO:"); Serial.print(CO); Serial.print(" ");
-  Serial.print("MQ135_Alcohol:"); Serial.print(Alcohol); Serial.print(" ");
-  Serial.print("MQ135_CO2:"); Serial.print(CO2 + 422.38); Serial.print(" ");
-  Serial.print("MQ135_Toluen:"); Serial.print(Toluen); Serial.print(" ");
-  Serial.print("MQ135_NH4:"); Serial.print(NH4); Serial.print(" ");
-  Serial.print("MQ135_Aceton:"); Serial.println(Aceton);  
-  Serial.println();
-*/
-
+  // flame sensor
   int flame_intensity = 1023 - analogRead(FLAME_SENSOR);
   payload += "flame:" + String(flame_intensity) + " ";
-  // Serial.println(payload);
+
+  //MQ5
+  MQ5.update(); // Update data, the arduino will read the voltage from the analog pin
+  payload += "MQ5_LPG:" + String(MQ5.readSensor()) + " "; // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
+
+  //MQ7
+  MQ7.update(); // Update data, the arduino will read the voltage from the analog pin
+  payload += "MQ7_CO:" + String(MQ7.readSensor()) + " "; // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
+  
+  //MQ8
+  MQ8.update(); // Update data, the arduino will read the voltage from the analog pin
+  payload += "MQ8_H2:" + String(MQ8.readSensor()) + " "; // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
+
+  //MQ135
+  MQ135.update(); // Update data, the arduino will read the voltage from the analog pin
+  payload += "MQ135_AQ:" + String(MQ135.readSensor()) + " "; // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
 
   payload += "t:125.80 samples:8 r_25um:6.68 ugm3_25um:0.68 pcs_25um:4176.45 r_1um:7.16 ugm3_1um:0.73 pcs_1um:4473.25";
+  
+  // Serial.println(payload);
+  
   server_post_req(payload);
   // server_get_req();
   
