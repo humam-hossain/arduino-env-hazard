@@ -95,6 +95,11 @@ const Dashboard = () => {
               </NavLink>
             </li>
             <li>
+              <NavLink to="/logs" className={({ isActive }) => (isActive ? "active" : "")}>
+                Logs
+              </NavLink>
+            </li>
+            <li>
               <NavLink to="/about" className={({ isActive }) => (isActive ? "active" : "")}>
                 About
               </NavLink>
@@ -108,6 +113,7 @@ const Dashboard = () => {
               <Route path="/sensors" element={<Sensors data={sensorsData} />} />
               <Route path="/analysis" element={<h1>Analysis</h1>} />
               <Route path="/settings" element={<h1>Settings</h1>} />
+              <Route path="/logs" element={<h1>Logs</h1>} />
               <Route path="/about" element={<h1>About</h1>} />
             </Routes>
           </div>
