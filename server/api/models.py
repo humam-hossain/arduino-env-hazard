@@ -14,3 +14,7 @@ class SensorData(models.Model):
     temp = models.FloatField(null=True)
     humidity = models.FloatField(null=True)
     flame = models.FloatField(null=True)
+    MQ5_LPG = models.FloatField(null=True)
+    MQ7_CO = models.FloatField(null=True)
+    MQ8_H2 = models.FloatField(null=True)
+    MQ135_AQ = models.FloatField(null=True)
