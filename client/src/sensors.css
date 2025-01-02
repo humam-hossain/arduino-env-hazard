@@ -1,0 +1,39 @@
+.sensor-charts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* Two columns */
+    gap: 20px; /* Space between charts */
+    margin: 20px 0;
+}
+
+.sensor-chart {
+    width: 100%; /* Full width */
+    height: 350px; /* Fixed height for the chart */
+  }
+
+.time-input {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  
+  .time-input input,
+  .time-input select,
+  .time-input button {
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+  
+  .time-input button {
+    background-color: #1976d2;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .time-input button:hover {
+    background-color: #155a9c;
+  }
+  

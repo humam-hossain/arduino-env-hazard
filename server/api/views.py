@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -9,12 +10,20 @@ from .serializer import SensorDataSerializer
 # Create your views here.
 @api_view(['GET'])
 def get_data(request):
-    try:
-        data = SensorData.objects.all()
-        serialized_data = SensorDataSerializer(data, many=True).data
-        
-        return Response(serialized_data, status=status.HTTP_200_OK)
+    from_timestamp = request.query_params.get('from', None)
     
+    if from_timestamp:    
+        try:
+            from_time = datetime.fromisoformat(from_timestamp)
+            sensor_data = SensorData.objects.filter(timestamp__gte=from_time)
+        except ValueError:
+            return Response("[ERROR] Invalid timestamp format. Use ISO 8601 format.", status=status.HTTP_400_BAD_REQUEST)
+    else:
+        sensor_data = SensorData.objects.all()
+    
+    try:        
+        serialized_data = SensorDataSerializer(sensor_data, many=True).data
+        return Response(serialized_data, status=status.HTTP_200_OK)
     except SensorData.DoesNotExist:
         return Response("[ERROR] Data not found", status=status.HTTP_404_NOT_FOUND)
     except ValidationError as e:

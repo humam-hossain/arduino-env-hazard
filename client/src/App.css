@@ -1,42 +1,161 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+/* Global Styles */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+/* Dashboard Layout */
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.dashboard-header {
+  font-weight: bold;
+  background-color: #f4f4f4;
+  color: black;
+  padding: 1rem;
+  text-align: left;
+  position: fixed; /* Fix the header to the top */
+  width: 100%; /* Full width of the viewport */
+  top: 0;
+  z-index: 1000; /* Ensure the header is above other elements */
+  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1); /* Optional: Add a shadow for visual separation */
+}
+
+.dashboard-body {
+  display: flex;
+  flex: 1;
+  margin-top: 70px; /* Add margin to account for the fixed header height */
+}
+
+.sidebar {
+  width: 200px; /* Fixed width of the sidebar */
+  background-color: #f4f4f4;
+  padding: 1rem;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  height: calc(100vh - 70px); /* Full height of the viewport minus the header height */
+  position: fixed;
+  top: 70px;
+  left: 0;
+  overflow-y: auto;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar li {
+  padding: 0.5rem 0;
+}
+
+.sidebar a {
+  text-decoration: none;
+  color: #333;
+  font-size: 16px;
+  display: block;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.sidebar a:hover {
+  background-color: #e0e0e0;
+  color: #000;
+}
+
+.sidebar a.active {
+  background-color: #1976d2;
+  color: #fff;
+  font-weight: bold;
+}
+
+/* Main Content */
+.content {
+  flex: 1;
+  margin-left: 200px; /* Account for the sidebar width */
+  padding: 1rem;
+  overflow-y: auto; /* Enable vertical scrolling */
+  box-sizing: border-box;
+  background-color: #f9f9f9;
+  display: flex; /* Flexbox layout */
+  flex-direction: column; /* Stack elements vertically */
+  gap: 20px; /* Add space between elements */
+}
+
+/* Container for Charts, Controls, and Tables */
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px; /* Add spacing between elements */
+}
+
+/* Footer */
+.dashboard-footer {
+  background-color: #222;
+  color: #fff;
   text-align: center;
+  padding: 20px;
+  border-top: 2px solid #444;
+  position: relative;
+  z-index: 1;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.dashboard-footer ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+.dashboard-footer li {
+  margin: 5px 0;
+}
+
+.dashboard-footer a {
+  color: #fff; /* Modern blue */
+  text-decoration: none;
+  font-weight: 500; /* Slightly bold for emphasis */
+  margin: 0 5px; /* Add spacing */
+  border-bottom: 2px solid transparent; /* Add bottom border */
+}
+
+.dashboard-footer a:hover {
+  color: #888; /* Darker blue on hover */
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 150px;
   }
-  to {
-    transform: rotate(360deg);
+
+  .content {
+    margin-left: 150px;
+  }
+
+  .dashboard-header {
+    font-size: 16px;
+    padding: 0.5rem;
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+@media (max-width: 480px) {
+  .sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    padding: 0.5rem;
   }
-}
 
-.card {
-  padding: 2em;
-}
+  .content {
+    margin-left: 0;
+  }
 
-.read-the-docs {
-  color: #888;
+  .dashboard-body {
+    flex-direction: column;
+  }
 }

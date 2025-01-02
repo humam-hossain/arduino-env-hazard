@@ -1,63 +1,128 @@
 import { useEffect, useState } from "react"
-import { LineChart, Line, Legend, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts"
+import { BrowserRouter as Router, Route, Routes, NavLink, useLocation } from "react-router-dom"
+import Overview from "./Overview.jsx";
+import Sensors from "./Sensors.jsx";
+import "./App.css"
 
 const App = () => {
-  const [sensorData, setSensorData] = useState([])
+  return (
+    <Router>
+      <Dashboard />
+    </Router>
+  );
+};
+
+const Dashboard = () => {
+  const [overviewSensorData, setOverviewSensorData] = useState([]);
+  const [sensorsData, setSensorsData] = useState([]);
+  const location = useLocation();
 
   useEffect(() => {
-    getSensorData()
-  }
-  , [])
+    // Start fetching data periodically
+    if (location.pathname === "/") {
+      const interval = setInterval(() => {
+        getOverviewSensorData();
+      }, 5000); // Fetch every 5 seconds
 
-  const getSensorData = async() =>{
-    try {
-      const response = await fetch("http://192.168.0.100:8000/api/get-data/")
-      const data = await response.json()
-      // console.log(data)
-      setSensorData(data)
-    }catch (error) {
-      console.error(error)
+      // Cleanup interval on component unmount
+      return () => clearInterval(interval);
     }
-  }
+    
+    if(location.pathname === "/sensors"){
+      const interval = setInterval(() => {
+        getSensorsData();
+      }, 5000); // Fetch every 5 seconds
 
-  const headers = [
-    // "t",
-    "samples",
-    "r_25um",
-    "ugm3_25um",
-    // "pcs_25um",
-    "r_1um",
-    "ugm3_1um",
-    // "pcs_1um",
-  ]
+      return () => clearInterval(interval);
+    }
+  }, [location.pathname]);
 
-  // Color palette
-  const colorPalette = [
-    "#4a148c", "#1b5e20", "#d32f2f", "#1976d2", "#0288d1", 
-    "#0288d1", "#8e24aa", "#7b1fa2", "#388e3c", "#c2185b"
-  ];
-  
+  const getOverviewSensorData = async () => {
+    try {
+      // Calculate the timestamp for 1 hour ago
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+      const response = await fetch(`http://192.168.0.100:8000/api/get-data/?from=${oneHourAgo}`);
+      const data = await response.json();
+      setOverviewSensorData(data);
+    } catch (error) {
+      console.error("[ERROR] fetching sensor data:", error);
+    }
+  };
+
+  const getSensorsData = async () => {
+    try {
+      // Calculate the timestamp for 1 hour ago
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+      console.log("/sensors", oneHourAgo);
+
+      const response = await fetch(`http://192.168.0.100:8000/api/get-data/?from=${oneHourAgo}`);
+      const data = await response.json();
+      setSensorsData(data);
+      console.log(sensorsData);
+    } catch (error) {
+      console.error("[ERROR] fetching sensor data:", error);
+    }
+  };
+
   return (
-    <>
-      <h1>Sensor Data</h1>
-      <LineChart width={1600} height={800} data={sensorData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="timestamp" />
-        <YAxis />
-        <Tooltip />
-        <Legend />
+    <div className="dashboard">
+      <header className="dashboard-header">
+        Industrial Environment Quality Monitoring & Hazard Detection System
+      </header>
+      <div className="dashboard-body">
+        <nav className="sidebar">
+          <ul>
+            <li>
+              <NavLink to="/" className={({ isActive }) => (isActive ? "active" : "")}>
+                Overview
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/sensors" className={({ isActive }) => (isActive ? "active" : "")}>
+                Sensors
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/analysis" className={({ isActive }) => (isActive ? "active" : "")}>
+                Analysis
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/settings" className={({ isActive }) => (isActive ? "active" : "")}>
+                Settings
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/about" className={({ isActive }) => (isActive ? "active" : "")}>
+                About
+              </NavLink>
+            </li>
+          </ul>
+        </nav>
+        <main className="content">
+          <div className="container">
+            <Routes>
+              <Route path="/" element={<Overview data={overviewSensorData} />} />
+              <Route path="/sensors" element={<Sensors data={sensorsData} />} />
+              <Route path="/analysis" element={<h1>Analysis</h1>} />
+              <Route path="/settings" element={<h1>Settings</h1>} />
+              <Route path="/about" element={<h1>About</h1>} />
+            </Routes>
+          </div>
+        </main>
+      </div>
+      <footer className="dashboard-footer">
+        <h3>Project Members:</h3> 
+        <p>
+          <a href="mailto:humam.hossain.e@gmail.com">Muhammed Humam Hossain</a>, <a href="mailto:mahmudurmarfy@gmail.com">Mahmudur Rahman Murphy</a>, <a href="mailto:202111075@ye.butex.edu.bd">Saihan Bin Sajjad</a>, <a href="mailto:202111020@ye.butex.edu.bd">Md Mahmudur Rahman</a>
+        </p>
+        <p>Yarn Engineering Department, Batch 47</p>
+        <h3><a href="https://www.butex.edu.bd/homepage/">Bangladesh University of Textiles, Dhaka, Bangladesh</a></h3>
+      </footer>
 
-        <Line type="monotone" dataKey="temp" stroke={colorPalette[0]} dot={false}/>
-        <Line type="monotone" dataKey="humidity" stroke={colorPalette[1]} dot={false}/>
-        <Line type="monotone" dataKey="flame" stroke={colorPalette[2]} dot={false}/>
-        
-
-        {/* {headers.map((header, index) => {
-          return <Line type="monotone" dataKey={header} stroke={colorPalette[index]} key={index}/>
-        })} */}
-
-      </LineChart>
-    </>
+    </div>
   );
 };
 
