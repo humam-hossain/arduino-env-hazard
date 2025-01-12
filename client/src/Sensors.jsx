@@ -17,13 +17,17 @@ const colorPalette = [
 ];
 
 const sensors = [
+    "t",
     "temp",
     "humidity",
     "flame",
     "MQ5_LPG",
     "MQ7_CO",
     "MQ8_H2",
-    "MQ135_AQ"
+    "MQ135_AQ",
+    "samples",
+    "ugm3_1um",
+    "ugm3_25um",
 ];
   
 const Sensors = ({ data }) => {
@@ -32,7 +36,7 @@ const Sensors = ({ data }) => {
     }
     return (
         <>
-            <h2>Last 1 Hour(s) Data</h2>
+            <h2>Last 24 Hour(s) Data</h2>
             <div className="sensor-charts">
                 {sensors.map((sensor, index) => {
                     return (

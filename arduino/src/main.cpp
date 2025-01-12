@@ -36,6 +36,30 @@ DHT dht(DHTPIN, DHTTYPE);
 // Flame sensor
 #define FLAME_SENSOR A4
 
+// DSM501A
+#define pin2_1um 3
+#define pin4_25um 4
+#define sample_time 10000
+int sample_count = 0;
+
+float calc_low_ratio(float lowPulse) {
+  return lowPulse / sample_time * 100.0;  // low ratio in %
+}
+
+float calc_c_ugm3(float lowPulse) {
+  float r = calc_low_ratio(lowPulse);
+  float c_mgm3 = 1000 * 0.00258425 * pow(r, 2) + 0.0858521 * r - 0.01345549;
+  return max(0, c_mgm3);
+}
+
+float calc_c_pcs283ml(float lowPulse) {
+  float r = calc_low_ratio(lowPulse);
+  float c_pcs283ml =  625 * r;
+  return min(c_pcs283ml, 12500);
+}
+
+unsigned long init_time;
+
 // ESP8266
 #define ESP8266 Serial1
 #define BAUD_RATE 115200
@@ -47,7 +71,7 @@ DHT dht(DHTPIN, DHTTYPE);
 // #define SUBNET_MASK "255.255.255.0"
 // #define TCP_SERVER_PORT 333
 
-#define SERVER_IP "192.168.0.100"
+#define SERVER_IP "192.168.0.104"
 #define SERVER_PORT "8000"
 
 // Function to send AT commands and wait for a valid response
@@ -256,7 +280,7 @@ void setup() {
   // Alcohol| 97124  | -4.918
   
   MQ5.init();   
-  Serial.print("Calibrating please wait.");
+  Serial.print("[INFO] MQ5: Calibrating please wait.");
   float calcR0 = 0;
   for(int i = 1; i<=10; i ++)
   {
@@ -282,7 +306,7 @@ void setup() {
   // Alcohol | 40000000000000000 | -12.35
 
   MQ7.init(); 
-  Serial.print("Calibrating please wait.");
+  Serial.print("[INFO] MQ7: Calibrating please wait.");
   float calcR02 = 0;
   for(int i = 1; i<=10; i ++)
   {
@@ -295,6 +319,8 @@ void setup() {
   if(isinf(calcR02)) {Serial.println("[WARNING] Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
   if(calcR02 == 0){Serial.println("[WARNING] Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
 
+
+/*
   //MQ8
   MQ8.setRegressionMethod(1); //_PPM =  a*ratio^b
   MQ8.setA(976.97); MQ8.setB(-0.688); // Configure the equation to to calculate H2 concentration
@@ -308,7 +334,7 @@ void setup() {
   // Alcohol | 76101 | -1.86
   
   MQ8.init();
-  Serial.print("Calibrating please wait.");
+  Serial.print("[INFO] MQ8: Calibrating please wait.");
   float calcR01 = 0;
   for(int i = 1; i<=10; i ++)
   {
@@ -320,8 +346,8 @@ void setup() {
   Serial.println("  done!.");
   if(isinf(calcR01)) {Serial.println("[WARNING] Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
   if(calcR01 == 0){Serial.println("[WARNING] Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
+*/
   
-
   //MQ135
   MQ135.setRegressionMethod(1); //_PPM =  a*ratio^b
   MQ135.setA(102.2 ); MQ135.setB(-2.473);
@@ -335,7 +361,7 @@ void setup() {
   // Aceton  | 34.668 | -3.369
   
   MQ135.init(); 
-  Serial.print("Calibrating please wait.");
+  Serial.print("[INFO] MQ135: Calibrating please wait.");
   float calcR03 = 0;
   for(int i = 1; i<=10; i ++)
   {
@@ -348,15 +374,18 @@ void setup() {
   
   if(isinf(calcR03)) {Serial.println("[WARNING] Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
   if(calcR03 == 0){Serial.println("[WARNING] Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
-
-
+  
   // DHT Setup
   Serial.println(F("DHT test!"));
   dht.begin();
 
-  // setup flame sensor
+  // flame sensor Setup
   pinMode(FLAME_SENSOR, INPUT);
 
+  // DSM501A Setup
+  pinMode(pin2_1um, INPUT);
+  pinMode(pin4_25um, INPUT);
+  init_time = millis();
 }
 
 void loop() {
@@ -385,20 +414,36 @@ void loop() {
   MQ7.update(); // Update data, the arduino will read the voltage from the analog pin
   payload += "MQ7_CO:" + String(MQ7.readSensor()) + " "; // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
   
+/*
   //MQ8
   MQ8.update(); // Update data, the arduino will read the voltage from the analog pin
   payload += "MQ8_H2:" + String(MQ8.readSensor()) + " "; // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
+*/
 
   //MQ135
   MQ135.update(); // Update data, the arduino will read the voltage from the analog pin
   payload += "MQ135_AQ:" + String(MQ135.readSensor()) + " "; // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
 
-  payload += "t:125.80 samples:8 r_25um:6.68 ugm3_25um:0.68 pcs_25um:4176.45 r_1um:7.16 ugm3_1um:0.73 pcs_1um:4473.25";
-  
-  // Serial.println(payload);
-  
-  server_post_req(payload);
+  // DSM501A
+  static unsigned long t_start = millis();
+  static float lowPM25, lowPM1 = 0;
+
+  lowPM25 += pulseIn(pin4_25um, LOW) / 1000.0;
+  lowPM1 += pulseIn(pin2_1um, LOW) / 1000.0;
+  sample_count++;
+
+  if ((millis() - t_start) >= sample_time) {
+    payload += "t:" + String((millis() - t_start)/1000.0) + " " + "samples:" + String(sample_count) + " " + "r_25um:" + String(calc_low_ratio(lowPM25)) + " " + "ugm3_25um:" + String(calc_c_ugm3(lowPM25)) + " " + "pcs_25um:" + String(calc_c_pcs283ml(lowPM25)) + " "
+ + "r_1um:" + String(calc_low_ratio(lowPM1)) + " " + "ugm3_1um:" + String(calc_c_ugm3(lowPM1)) + " " + "pcs_1um:" + String(calc_c_pcs283ml(lowPM1)) + " ";
+
+    // reset
+    lowPM25 = 0;
+    lowPM1 = 0;
+    sample_count = 0;
+    t_start = millis();
+    server_post_req(payload);
+  }
+  // Serial.println(payload);  
   // server_get_req();
-  
   // delay(1000);
 }

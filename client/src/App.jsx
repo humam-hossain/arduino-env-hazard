@@ -17,15 +17,16 @@ const Dashboard = () => {
   const [sensorsData, setSensorsData] = useState([]);
   const location = useLocation();
 
-  const SERVER_IP = "192.168.0.100:8000"
+  const SERVER_IP = "192.168.0.104:8000"
 
 
   useEffect(() => {
     // Start fetching data periodically
+    const duration = 10000
     if (location.pathname === "/") {
       const interval = setInterval(() => {
         getOverviewSensorData();
-      }, 5000); // Fetch every 5 seconds
+      }, duration); // Fetch every 5 seconds
 
       // Cleanup interval on component unmount
       return () => clearInterval(interval);
@@ -34,7 +35,7 @@ const Dashboard = () => {
     if(location.pathname === "/sensors"){
       const interval = setInterval(() => {
         getSensorsData();
-      }, 5000); // Fetch every 5 seconds
+      }, duration); // Fetch every 5 seconds
 
       return () => clearInterval(interval);
     }
@@ -43,7 +44,7 @@ const Dashboard = () => {
   const getOverviewSensorData = async () => {
     try {
       // Calculate the timestamp for 1 hour ago
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const oneHourAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
       const response = await fetch(`http://${SERVER_IP}/api/get-data/?from=${oneHourAgo}`);
       const data = await response.json();
@@ -56,7 +57,7 @@ const Dashboard = () => {
   const getSensorsData = async () => {
     try {
       // Calculate the timestamp for 1 hour ago
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const oneHourAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
       console.log("/sensors", oneHourAgo);
 

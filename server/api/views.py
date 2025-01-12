@@ -40,12 +40,8 @@ def post_data(request):
         pairs = re.findall(pattern, body)
 
         data = {key: float(value) if '.' in value else int(value) for key, value in pairs}
-        if "ugm3_25um" in data:
-            data["ugm3_25um"] *= 1000
-        if "ugm3_1um" in data:
-            data["ugm3_1um"] *= 1000
 
-        # print(data)
+        print(data)
         serializer = SensorDataSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
