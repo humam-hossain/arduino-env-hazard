@@ -1,6 +1,6 @@
 .sensor-charts {
     display: grid;
-    grid-template-columns: repeat(3, 1fr); /* Two columns */
+    grid-template-columns: repeat(4, 1fr); /* Two columns */
     gap: 20px; /* Space between charts */
     margin: 20px 0;
 }
