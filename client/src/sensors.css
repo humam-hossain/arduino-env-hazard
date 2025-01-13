@@ -1,3 +1,24 @@
+/* sensor summary */
+.sensor-summary {
+  margin-bottom: 20px;
+}
+
+.sensor-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* Four columns */
+  gap: 10px;
+  font-size: 14px;
+  color: #333;
+}
+
+.sensor-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* charts */
 .sensor-charts {
     display: grid;
     grid-template-columns: repeat(4, 1fr); /* Two columns */
