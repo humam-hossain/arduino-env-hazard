@@ -55,9 +55,9 @@ const Dashboard = () => {
   const getOverviewSensorData = async () => {
     try {
       // Calculate the timestamp for 1 hour ago
-      const oneHourAgo = new Date(Date.now() - timelapse).toISOString();
+      const from = new Date(Date.now() - timelapse).toISOString();
 
-      const response = await fetch(`http://${SERVER_IP}/api/get-data/?from=${oneHourAgo}`);
+      const response = await fetch(`http://${SERVER_IP}/api/get-data/?from=${from}`);
       const data = await response.json();
       setOverviewSensorData(data);
     } catch (error) {
@@ -68,11 +68,9 @@ const Dashboard = () => {
   const getSensorsData = async () => {
     try {
       // Calculate the timestamp for 1 hour ago
-      const oneHourAgo = new Date(Date.now() - timelapse).toISOString();
+      const from = new Date(Date.now() - timelapse).toISOString();
 
-      console.log("/sensors", oneHourAgo);
-
-      const response = await fetch(`http://${SERVER_IP}/api/get-data/?from=${oneHourAgo}`);
+      const response = await fetch(`http://${SERVER_IP}/api/get-data/?from=${from}`);
       const data = await response.json();
       setSensorsData(data);
     } catch (error) {

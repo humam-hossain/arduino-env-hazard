@@ -72,10 +72,31 @@ const Sensors = ({ data }) => {
     if (!data || data.length === 0) {
         return <p>No data available to display.</p>;
     }
-    const processedData = preprocessData(data);
+    const processedData = preprocessData(data)
+    // Get the latest sensor data
+    const latestData = data[data.length - 1]
+
     return (
         <>
             <h2>Last 24 Hour(s) Data</h2>
+            <div className="sensor-summary">
+                <div className="sensor-grid">
+                    {sensors.map((sensor, index) => (
+                        <div
+                            key={index}
+                            className="sensor-item"
+                            style={{ color: colorPalette[index % colorPalette.length] }} // Match the chart color
+                        >
+                            <span>{sensor}:</span>{" "}
+                            <span>
+                                {latestData[sensor] !== undefined && latestData[sensor] !== null
+                                    ? latestData[sensor]
+                                    : "N/A"}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </div>
             <div className="sensor-charts">
                 {sensors.map((sensor, index) => {
                     return (
