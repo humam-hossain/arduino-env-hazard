@@ -15,14 +15,24 @@ const App = () => {
 const Dashboard = () => {
   const [overviewSensorData, setOverviewSensorData] = useState([]);
   const [sensorsData, setSensorsData] = useState([]);
+  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
   const location = useLocation();
 
   const SERVER_IP = "192.168.0.104:8000"
 
+  const duration = 10000
+  useEffect(() => {
+    // Update the current time every second
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString());
+    }, duration);
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     // Start fetching data periodically
-    const duration = 10000
     if (location.pathname === "/") {
       const interval = setInterval(() => {
         getOverviewSensorData();
@@ -41,10 +51,11 @@ const Dashboard = () => {
     }
   }, [location.pathname]);
 
+  const timelapse = 24 * 60 * 60 * 1000
   const getOverviewSensorData = async () => {
     try {
       // Calculate the timestamp for 1 hour ago
-      const oneHourAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const oneHourAgo = new Date(Date.now() - timelapse).toISOString();
 
       const response = await fetch(`http://${SERVER_IP}/api/get-data/?from=${oneHourAgo}`);
       const data = await response.json();
@@ -57,7 +68,7 @@ const Dashboard = () => {
   const getSensorsData = async () => {
     try {
       // Calculate the timestamp for 1 hour ago
-      const oneHourAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const oneHourAgo = new Date(Date.now() - timelapse).toISOString();
 
       console.log("/sensors", oneHourAgo);
 
@@ -72,7 +83,7 @@ const Dashboard = () => {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        Industrial Environment Quality Monitoring & Hazard Detection System
+        Industrial Environment Quality Monitoring & Hazard Detection System {`Current Time: ${currentTime}`}
       </header>
       <div className="dashboard-body">
         <nav className="sidebar">
