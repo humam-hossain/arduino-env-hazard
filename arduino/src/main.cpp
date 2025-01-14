@@ -1,6 +1,94 @@
 #include <Arduino.h>
 #include "DHT.h"
 #include <MQUnifiedsensor.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SH110X.h>
+#include <Wire.h>
+
+// Define OLED display dimensions
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+
+// Declare an SH110X display object (I2C interface)
+Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
+
+// BUTTONS
+#define UP_BTN 53
+#define DOWN_BTN 51
+#define LEFT_BTN 50
+#define RIGHT_BTN 52
+
+// LEDS
+#define LED_BRIGHTNESS 20
+#define ALARM_LED 48
+#define PROCESS_LED_RED 42
+#define PROCESS_LED_GREEN 6
+#define PROCESS_LED_BLUE 7
+#define SERVER_LED 44
+
+void process_led(int red, int green, int blue) {
+  analogWrite(PROCESS_LED_RED, red);
+  analogWrite(PROCESS_LED_GREEN, green);
+  analogWrite(PROCESS_LED_BLUE, blue);
+}
+
+void process_warning(){
+  process_led(40, 40, 0);
+  delay(1000);
+  process_led(0, 0, 0);
+}
+
+void process_error(){
+  process_led(40, 0, 0);
+  delay(1000);
+  process_led(0, 0, 0);
+}
+
+// BUZZER
+#define BUZZER 5
+
+// Notes of the Nokia starting tone (frequencies in Hz)
+int tempo = 180;       // Tempo for the melody
+
+// Nokia ringtone melody (notes and durations)
+int melody[] = {
+  659, 8, 587, 8, 370, 4, 415, 4, 
+  554, 8, 494, 8, 294, 4, 330, 4, 
+  494, 8, 440, 8, 277, 4, 330, 4, 
+  440, 2
+};
+
+void nokia_tone()
+{
+  int noteCount = sizeof(melody) / sizeof(melody[0]) / 2;
+  int wholeNote = (60000 * 4) / tempo;
+
+  for (int i = 0; i < noteCount * 2; i += 2) {
+    int note = melody[i];
+    int duration = wholeNote / melody[i + 1];
+    
+    if (note > 0) {
+      tone(BUZZER, note, duration * 0.9); // Play note for 90% of its duration
+    }
+    delay(duration); // Wait for the duration
+    noTone(BUZZER); // Stop the note
+  }
+}
+
+void normal_tone()
+{
+  noTone(BUZZER);
+}
+
+void warning_tone()
+{
+  tone(BUZZER, 1000);
+}
+
+void hazard_tone()
+{
+  tone(BUZZER, 500);
+}
 
 // MQ Gas Sensors
 #define PLACA "Arduino Mega 2560"
@@ -39,7 +127,7 @@ DHT dht(DHTPIN, DHTTYPE);
 // DSM501A
 #define pin2_1um 3
 #define pin4_25um 4
-#define sample_time 10000
+#define sample_time 12000
 int sample_count = 0;
 
 float calc_low_ratio(float lowPulse) {
@@ -60,6 +148,7 @@ float calc_c_pcs283ml(float lowPulse) {
 
 unsigned long init_time;
 
+
 // ESP8266
 #define ESP8266 Serial1
 #define BAUD_RATE 115200
@@ -72,10 +161,12 @@ unsigned long init_time;
 // #define TCP_SERVER_PORT 333
 
 #define SERVER_IP "192.168.0.104"
+// #define SERVER_IP "192.168.0.104"
 #define SERVER_PORT "8000"
 
 // Function to send AT commands and wait for a valid response
 String send_command(const String& command, unsigned long timeout, bool debug = false) {
+  process_led(0, 0, LED_BRIGHTNESS);
   ESP8266.println(command);  // Send AT command to check ESP8266 connection
   unsigned long startTime = millis();
   bool completeResponse = false;
@@ -104,14 +195,16 @@ String send_command(const String& command, unsigned long timeout, bool debug = f
 
   if(!completeResponse) {
     Serial.println("[WARNING] incomplete response from ESP8266.");
+    process_warning();
   }
 
   Serial.println("[COMPLETED] " + command);
+  process_led(0, 0, 0);
   return response;
 }
 
 // Function to ping an internet address
-void ping_internet(int total_count, unsigned long timeout, bool debug = false) {
+bool ping_server(int total_count, unsigned long timeout, bool debug = false) {
   int count = 0;
   
   for(int i = 0; i < total_count; i++) {
@@ -130,19 +223,28 @@ void ping_internet(int total_count, unsigned long timeout, bool debug = false) {
   
   if(count == total_count){
     Serial.println("[SUCCESS] Internet connection is good.");
+    process_led(0, 0, LED_BRIGHTNESS);
+
+    return true;
   }else if (count > 0){
     Serial.println("[WARNING] Internet connection is unstable.");
+    process_led(0, 0, LED_BRIGHTNESS);
+    return true;
   }else{
     Serial.println("[ERROR] No internet connection.");
+    process_error();
+
+    return false;
   }
 }
 
 // Function to set up the ESP8266
 void setupESP8266() {
   Serial.println("[INFO] Configuring ESP8266...");
-
   Serial.println("[INFO] Resetting ESP8266...");
+  
   send_command("AT+RST", 6500, true);
+
   Serial.println("[INFO] Turning on station mode on ESP8266");
   send_command("AT+CWMODE_CUR=1", 2000, true);
 
@@ -150,12 +252,13 @@ void setupESP8266() {
   String ssid = "no internet";
   String password = "humamhumam09";
   send_command("AT+CWSAP_CUR=\"" + ssid + "\",\"" + password + "\",5,3", 1000, true);
+  // send_command("AT+CWJAP_CUR=\"" + ssid + "\",\"" + password + "\",5,3", 1000, true);
 
   // check ip and mac address
   send_command("AT+CIFSR", 1500, true);
 
   // check internet connection
-  ping_internet(1, 2000);
+  ping_server(1, 2000);
   send_command("AT+CWMODE_CUR?", 1000, true);
 
   // Serial.println("[INFO] Setting up TCP server...");
@@ -246,14 +349,69 @@ void server_post_req(const String& payload) {
 }
 
 void setup() {
+  Wire.begin();
+
+  process_led(0, LED_BRIGHTNESS, 0);
   Serial.begin(BAUD_RATE); // Set up Serial communication for debugging
   while(!Serial){
+    process_warning();
     Serial.println("[WARNING] Waiting for Serial to be ready...");
   };  // Wait for Serial to be ready
-  
+
+  // Initialize the OLED display
+  if (!display.begin(0x3C)) { // Default I2C address is 0x3C
+    Serial.println(F("SH1106G allocation failed"));
+    process_error();
+  }
+
+  // Clear the buffer
+  display.clearDisplay();
+
+  // Set text properties
+  display.setTextSize(1);      // Normal 1:1 pixel scale
+  display.setTextColor(SH110X_WHITE); // Draw white text
+  display.setCursor(0, 0);     // Start at top-left corner
+
+  // Display welcome message
+  display.println(F("INDUSTRIAL ENV"));
+  display.println(F("QUALITY & HAZARD"));
+  display.println(F("MONITORING SYSTEM"));
+  display.setTextColor(SH110X_BLACK, SH110X_WHITE); // Draw white text
+  display.println(F("---PROJECT MEMBERS---")); // reverse
+  display.setTextColor(SH110X_WHITE); // Draw white text
+  display.println(F("Humam Hossain"));
+  display.println(F("Mahmudur Rahman Marfy"));
+  display.println(F("Saihan Bin Sajjad"));
+  display.println(F("Mahmudur Rahman Riyad"));
+  display.display();          // Send buffer to the display
+
+  nokia_tone();
+  display.clearDisplay();
+
+  // BUTTONS SETUP
+  pinMode(UP_BTN, INPUT);
+  pinMode(DOWN_BTN, INPUT);
+  pinMode(LEFT_BTN, INPUT);
+  pinMode(RIGHT_BTN, INPUT);
+
+  // LEDS SETUP
+  pinMode(ALARM_LED, OUTPUT);
+  pinMode(PROCESS_LED_RED, OUTPUT);
+  pinMode(PROCESS_LED_GREEN, OUTPUT);
+  pinMode(PROCESS_LED_BLUE, OUTPUT);
+  pinMode(SERVER_LED, OUTPUT);
+
+  // BUZZER SETUP
+  pinMode(BUZZER, OUTPUT);
+  delay(500);
+  process_led(0, 0, 0);
+
+  // ESP8266 SETUP
+  process_led(0, 0, LED_BRIGHTNESS);
   ESP8266.begin(BAUD_RATE); // Set up Serial1 for ESP8266 communication
   while(!ESP8266){
     Serial.println("[WARNING] Waiting for ESP8266 to be ready...");
+    process_warning();
   }  // Wait for ESP8266 to be ready
 
   String response = "";
@@ -263,11 +421,13 @@ void setup() {
     response += c;
   }  // Clear the input buffer
   Serial.println(response);
+  process_led(0, 0, 0);
 
   setupESP8266();
 
   // setup gas sensors
   //MQ5
+  process_led(0, LED_BRIGHTNESS, 0);
   MQ5.setRegressionMethod(1); //_PPM =  a*ratio^b
   MQ5.setA(80.897); MQ5.setB(-2.431); // Configure the equation to to calculate H2 concentration
 
@@ -290,10 +450,18 @@ void setup() {
   }
   MQ5.setR0(calcR0/10);
   Serial.println("  done!.");
-  if(isinf(calcR0)) {Serial.println("[WARNING] Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
-  if(calcR0 == 0){Serial.println("[WARNING] Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
+  if(isinf(calcR0)) {
+    Serial.println("[WARNING] Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); 
+    process_warning();
+  }
+  if(calcR0 == 0){
+    Serial.println("[WARNING] Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); 
+    process_error();
+  }
+  process_led(0, 0, 0);
 
   //MQ7
+  process_led(0, LED_BRIGHTNESS, 0);
   MQ7.setRegressionMethod(1); //_PPM =  a*ratio^b
   MQ7.setA(99.042); MQ7.setB(-1.518); // Configure the equation to calculate CO concentration value
 
@@ -316,9 +484,15 @@ void setup() {
   }
   MQ7.setR0(calcR02/10);
   Serial.println("  done!.");
-  if(isinf(calcR02)) {Serial.println("[WARNING] Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
-  if(calcR02 == 0){Serial.println("[WARNING] Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
-
+  if(isinf(calcR02)) {
+    Serial.println("[WARNING] Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply");
+    process_warning();
+  }
+  if(calcR02 == 0){
+    Serial.println("[WARNING] Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); 
+    process_error();
+  }
+  process_led(0, 0, 0);
 
 /*
   //MQ8
@@ -349,6 +523,7 @@ void setup() {
 */
   
   //MQ135
+  process_led(0, LED_BRIGHTNESS, 0);
   MQ135.setRegressionMethod(1); //_PPM =  a*ratio^b
   MQ135.setA(102.2 ); MQ135.setB(-2.473);
   // Exponential regression:
@@ -372,47 +547,140 @@ void setup() {
   MQ135.setR0(calcR03/10);
   Serial.println("  done!.");
   
-  if(isinf(calcR03)) {Serial.println("[WARNING] Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply"); while(1);}
-  if(calcR03 == 0){Serial.println("[WARNING] Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply"); while(1);}
+  if(isinf(calcR03)) {
+    Serial.println("[WARNING] Conection issue, R0 is infinite (Open circuit detected) please check your wiring and supply");
+    process_warning();
+  }
+  if(calcR03 == 0){
+    Serial.println("[WARNING] Conection issue found, R0 is zero (Analog pin shorts to ground) please check your wiring and supply");
+    process_error();
+  }
   
   // DHT Setup
+  process_led(40, 25, 0);
   Serial.println(F("DHT test!"));
   dht.begin();
+  delay(1000);
+  process_led(0, 0, 0);
 
   // flame sensor Setup
+  process_led(40, 29, 31);
   pinMode(FLAME_SENSOR, INPUT);
+  delay(1000);
+  process_led(0, 0, 0);
 
   // DSM501A Setup
+  process_led(0, LED_BRIGHTNESS, 0);
   pinMode(pin2_1um, INPUT);
   pinMode(pin4_25um, INPUT);
+  delay(5000);
+  process_led(0, 0, 0);
+
+  analogWrite(SERVER_LED, LED_BRIGHTNESS);
   init_time = millis();
 }
 
 void loop() {
+  const char* data[] = {
+    "Humidity(%): ",
+    "Temp(C):",
+    "Flame: ",
+    "MQ5_LPG(ppm): ",
+    "MQ7_CO(ppm): ",
+    "MQ135_AQ(ppm): ",
+    "Samples: ",
+    "PM25 (ug/m3): ",
+    "PM10 (ug/m3): ",
+    "t: ",
+  };
+
+  const int data_size = sizeof(data) / sizeof(data[0]); // Count of data items
+  float sensor_values[data_size];
+  // 0=good, 1=warning, 2=hazardous
+  int sensor_alert[data_size];
+  int current_sensor = 0;
+
   String payload = "";
+  String alarm = "";
+  String warning = "";
 
   // DHT
+  process_led(40, 25, 0);
   float h = dht.readHumidity();
   float t = dht.readTemperature();
   float f = dht.readTemperature(true);
   if (isnan(h) || isnan(t) || isnan(f)) {
-    Serial.println(F("Failed to read from DHT sensor!"));
+    Serial.println(F("[ERROR] Failed to read from DHT sensor!"));
+    process_error();
     return;
   }
 
+  sensor_values[current_sensor] = h;
+  ++current_sensor;
+  sensor_values[current_sensor] = t;
+  ++current_sensor;
   payload = "humidity:" + String(h) + " temp:" + String(t) + " ";
+  process_led(0, 0, 0);
 
   // flame sensor
+  process_led(40, 29, 31);
   int flame_intensity = 1023 - analogRead(FLAME_SENSOR);
+  sensor_values[current_sensor] = flame_intensity;
+  if(flame_intensity >= 10) {
+    Serial.println("[WARNING] Flame detected!");
+    process_warning();
+    sensor_alert[current_sensor] = 1;
+    warning += "flame";
+  }else{
+    sensor_alert[current_sensor] = 0;
+  }
+  ++current_sensor;
   payload += "flame:" + String(flame_intensity) + " ";
+  process_led(0, 0, 0);
 
   //MQ5
+  process_led(0, LED_BRIGHTNESS, 0);
   MQ5.update(); // Update data, the arduino will read the voltage from the analog pin
-  payload += "MQ5_LPG:" + String(MQ5.readSensor()) + " "; // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
+  sensor_values[current_sensor] = MQ5.readSensor();
+  payload += "MQ5_LPG:" + String(sensor_values[current_sensor]) + " "; // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
+  if(sensor_values[current_sensor] >= 1500){
+    Serial.println("[MESSAGE] LPG level is critically high!");
+    sensor_alert[current_sensor] = 2;
+    alarm += "MQ5_LPG";
+    process_warning();
+  }
+  else if(sensor_values[current_sensor] >= 250){
+    Serial.println("[MESSAGE] LPG level is cautiously high!");
+    sensor_alert[current_sensor] = 1;
+    alarm += "MQ5_LPG";
+    process_error();
+  }else{
+    sensor_alert[current_sensor] = 0;
+
+  }
+  ++current_sensor;
 
   //MQ7
   MQ7.update(); // Update data, the arduino will read the voltage from the analog pin
-  payload += "MQ7_CO:" + String(MQ7.readSensor()) + " "; // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
+  sensor_values[current_sensor] = MQ7.readSensor();
+  payload += "MQ7_CO:" + String(sensor_values[current_sensor]) + " "; // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
+
+  if(sensor_values[current_sensor] >= 5000){
+    Serial.println("[MESSAGE] CO level is critically high!");
+    sensor_alert[current_sensor] = 2;
+    alarm += "MQ7_CO";
+    process_warning();
+  }
+  else if(sensor_values[current_sensor] >= 1000){
+    Serial.println("[MESSAGE] CO level is cautiously high!");
+    sensor_alert[current_sensor] = 1;
+    alarm += "MQ7_CO";
+    process_error();
+  }else{
+    sensor_alert[current_sensor] = 0;
+
+  }
+  ++current_sensor;
   
 /*
   //MQ8
@@ -422,7 +690,25 @@ void loop() {
 
   //MQ135
   MQ135.update(); // Update data, the arduino will read the voltage from the analog pin
-  payload += "MQ135_AQ:" + String(MQ135.readSensor()) + " "; // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
+  sensor_values[current_sensor] = MQ135.readSensor();
+  payload += "MQ135_AQ:" + String(sensor_values[current_sensor]) + " "; // Sensor will read PPM concentration using the model, a and b values set previously or from the setup
+  if(sensor_values[current_sensor] >= 7000){
+    Serial.println("[MESSAGE] AQ level is critically high!");
+    sensor_alert[current_sensor] = 2;
+    alarm += "MQ135_AQ";
+    process_warning();
+  }
+  else if(sensor_values[current_sensor] >= 1500){
+    Serial.println("[MESSAGE] AQ level is cautiously high!");
+    sensor_alert[current_sensor] = 1;
+    alarm += "MQ135_AQ";
+    process_error();
+  }else{
+    sensor_alert[current_sensor] = 0;
+
+  }
+  ++current_sensor;
+  process_led(0, 0, 0);
 
   // DSM501A
   static unsigned long t_start = millis();
@@ -433,17 +719,139 @@ void loop() {
   sample_count++;
 
   if ((millis() - t_start) >= sample_time) {
-    payload += "t:" + String((millis() - t_start)/1000.0) + " " + "samples:" + String(sample_count) + " " + "r_25um:" + String(calc_low_ratio(lowPM25)) + " " + "ugm3_25um:" + String(calc_c_ugm3(lowPM25)) + " " + "pcs_25um:" + String(calc_c_pcs283ml(lowPM25)) + " "
- + "r_1um:" + String(calc_low_ratio(lowPM1)) + " " + "ugm3_1um:" + String(calc_c_ugm3(lowPM1)) + " " + "pcs_1um:" + String(calc_c_pcs283ml(lowPM1)) + " ";
+    process_led(LED_BRIGHTNESS, 0, LED_BRIGHTNESS);
+    
+    sensor_values[current_sensor] = sample_count;
+    ++current_sensor;
+
+    float r_25um = calc_low_ratio(lowPM25);
+    float r_1um = calc_low_ratio(lowPM1);
+    float pcs_25um = calc_c_pcs283ml(lowPM25);
+    float pcs_1um = calc_c_pcs283ml(lowPM1);
+    float ugm3_25um = calc_c_ugm3(lowPM25);
+    sensor_values[current_sensor] = ugm3_25um;
+    if(sensor_values[current_sensor] >= 100){
+      Serial.println("[MESSAGE] Hazardous Air Quality");
+      sensor_alert[current_sensor] = 2;
+      alarm += "ugm3_25um";
+      process_warning();
+    }
+    else if(sensor_values[current_sensor] >= 25){
+      Serial.println("[MESSAGE] Unhealthy Air Quality!");
+      sensor_alert[current_sensor] = 1;
+      alarm += "ugm3_25um";
+      process_error();
+    }else{
+      sensor_alert[current_sensor] = 0;
+  
+    }
+    ++current_sensor;
+    float ugm3_1um = calc_c_ugm3(lowPM1);
+    sensor_values[current_sensor] = ugm3_1um;
+    if(sensor_values[current_sensor] >= 300){
+      Serial.println("[MESSAGE] Hazardous Air Quality");
+      sensor_alert[current_sensor] = 2;
+      alarm += "ugm3_1um";
+      process_warning();
+    }
+    else if(sensor_values[current_sensor] >= 80){
+      Serial.println("[MESSAGE] Unhealthy Air Quality!");
+      sensor_alert[current_sensor] = 1;
+      alarm += "ugm3_1um";
+      process_error();
+    }else{
+      sensor_alert[current_sensor] = 0;
+  
+    }
+    ++current_sensor;
+    float t = (millis() - t_start)/1000.0;
+    sensor_values[current_sensor] = t;
+    ++current_sensor;
+
+
+    payload += "t:" + String(t) + " " + "samples:" + String(sample_count) + " " + "r_25um:" + String(r_25um) + " " + "ugm3_25um:" + String(ugm3_25um) + " " + "pcs_25um:" + String(pcs_25um) + " " + "r_1um:" + String(r_1um) + " " + "ugm3_1um:" + String(ugm3_1um) + " " + "pcs_1um:" + String(pcs_1um) + " ";
 
     // reset
     lowPM25 = 0;
     lowPM1 = 0;
     sample_count = 0;
     t_start = millis();
+    process_led(0, 0, 0);
+
     server_post_req(payload);
   }
+
   // Serial.println(payload);  
   // server_get_req();
   // delay(1000);
+
+  process_led(0, 0, 0);
+
+  // Display
+  const int textHeight = 8;    // Height of each line of text
+  const int maxVisibleLines = SCREEN_HEIGHT / textHeight;
+  const int scrollSpeed = 500; // Scroll speed in milliseconds
+
+  // display summary
+  display.clearDisplay();
+  display.setTextSize(1); // Small text size
+  display.setTextColor(SH110X_WHITE); // Draw white text on black background
+  display.setCursor(0, 0); // Start at top-left corner
+
+  int alarm_count = 0;
+  int warning_count = 0;
+
+  for(int i=0; i<data_size; ++i){
+    if(sensor_alert[i] == 2){
+      alarm_count++;
+    }
+    if(sensor_alert[i] == 1){
+      warning_count++;
+    }
+  }
+
+  String condition;
+  if(alarm_count >0){
+    condition = "CRITICAL";
+    analogWrite(ALARM_LED, 255);
+    hazard_tone();
+  }else if(warning_count > 0){
+    condition = "CAUTION";
+    analogWrite(ALARM_LED, 255);
+    warning_tone();
+  }else{
+    condition = "SAFE";
+    analogWrite(ALARM_LED, 0);
+    noTone(BUZZER);
+  }
+  display.print("CONDITION: ");
+  display.print(condition);
+
+  // Display sensor readings
+  const int summary_lines = 3;
+  static int offset = 0; // Start offset for scrolling
+
+  // Clear and draw the display
+  display.setTextSize(1); // Small text size
+  display.setTextColor(SH110X_BLACK, SH110X_WHITE); // Draw white text on black background
+  display.setCursor(0, 2*textHeight); // Start at top-left corner
+  display.print("---SENSOR READINGS---");
+
+  for (int i = 0; i < maxVisibleLines; i++) {
+    int dataIndex = (i + offset) % data_size;
+    display.setTextSize(1); // Small text size
+    display.setTextColor(SH110X_WHITE);
+    display.setCursor(0, (i+summary_lines) * textHeight);
+    display.print(data[dataIndex]);
+    display.print(sensor_values[dataIndex]);
+  }
+  display.display();
+
+  // Update the offset to scroll the display
+  offset++;
+  if (offset >= data_size) {
+    offset = 0; // Reset offset when all lines have been scrolled
+  }
+
+  delay(scrollSpeed); // Adjust scroll speed
 }

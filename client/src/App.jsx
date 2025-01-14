@@ -18,6 +18,7 @@ const Dashboard = () => {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
   const location = useLocation();
 
+  // const SERVER_IP = "192.168.0.104:8000"
   const SERVER_IP = "192.168.0.104:8000"
 
   const duration = 10000
