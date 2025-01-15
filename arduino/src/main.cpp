@@ -12,6 +12,35 @@
 // Declare an SH110X display object (I2C interface)
 Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 
+void scrollText(String text, int y) {
+  static int scrollOffset = 0; // Horizontal scrolling offset
+  int textWidth = text.length() * 6; // Calculate text width assuming each character is 6 pixels wide
+  int displayWidth = 128; // Adjust this based on your display's width
+  int textHeight = 8; // Adjust based on the font size (e.g., 8 pixels for size 1)
+
+  // Clear the specific line area
+  display.fillRect(0, y, displayWidth, textHeight, SH110X_BLACK);
+
+  // Draw the text at the current offset
+  display.setCursor(-scrollOffset, y);
+  display.print(text);
+
+  // Handle wrapping around for scrolling
+  if (textWidth - scrollOffset < displayWidth) {
+    display.setCursor(textWidth - scrollOffset, y);
+    display.print(text);
+  }
+
+  // Update the scroll offset
+  scrollOffset++;
+  scrollOffset++;
+  scrollOffset++;
+  scrollOffset++;
+  if (scrollOffset > textWidth) {
+    scrollOffset = 0; // Reset the offset when the text has fully scrolled
+  }
+}
+
 // BUTTONS
 #define UP_BTN 53
 #define DOWN_BTN 51
@@ -127,11 +156,11 @@ DHT dht(DHTPIN, DHTTYPE);
 // DSM501A
 #define pin2_1um 3
 #define pin4_25um 4
-#define sample_time 12000
+#define sample_time 15000
 int sample_count = 0;
 
 float calc_low_ratio(float lowPulse) {
-  return lowPulse / sample_time * 100.0;  // low ratio in %
+  return lowPulse / (sample_time) * 100.0;  // low ratio in %
 }
 
 float calc_c_ugm3(float lowPulse) {
@@ -388,6 +417,10 @@ void setup() {
   nokia_tone();
   display.clearDisplay();
 
+  display.setCursor(0, 0);
+  display.println(F("I:Initializing Setup."));
+  display.display();
+
   // BUTTONS SETUP
   pinMode(UP_BTN, INPUT);
   pinMode(DOWN_BTN, INPUT);
@@ -407,6 +440,8 @@ void setup() {
   process_led(0, 0, 0);
 
   // ESP8266 SETUP
+  display.println(F("I:Setting up ESP8266."));
+  display.display();
   process_led(0, 0, LED_BRIGHTNESS);
   ESP8266.begin(BAUD_RATE); // Set up Serial1 for ESP8266 communication
   while(!ESP8266){
@@ -427,6 +462,8 @@ void setup() {
 
   // setup gas sensors
   //MQ5
+  display.println(F("I:Setting up MQ5 LPG."));
+  display.display();
   process_led(0, LED_BRIGHTNESS, 0);
   MQ5.setRegressionMethod(1); //_PPM =  a*ratio^b
   MQ5.setA(80.897); MQ5.setB(-2.431); // Configure the equation to to calculate H2 concentration
@@ -461,6 +498,8 @@ void setup() {
   process_led(0, 0, 0);
 
   //MQ7
+  display.println(F("I:Setting up MQ7 CO."));
+  display.display();
   process_led(0, LED_BRIGHTNESS, 0);
   MQ7.setRegressionMethod(1); //_PPM =  a*ratio^b
   MQ7.setA(99.042); MQ7.setB(-1.518); // Configure the equation to calculate CO concentration value
@@ -523,6 +562,8 @@ void setup() {
 */
   
   //MQ135
+  display.println(F("I:Setting up MQ135."));
+  display.display();
   process_led(0, LED_BRIGHTNESS, 0);
   MQ135.setRegressionMethod(1); //_PPM =  a*ratio^b
   MQ135.setA(102.2 ); MQ135.setB(-2.473);
@@ -557,42 +598,79 @@ void setup() {
   }
   
   // DHT Setup
+  display.println(F("I:Setting up DHT22"));
+  display.display();
   process_led(40, 25, 0);
   Serial.println(F("DHT test!"));
   dht.begin();
-  delay(1000);
+  delay(500);
   process_led(0, 0, 0);
 
   // flame sensor Setup
+  display.println(F("I:Setting up Flame"));
+  display.display();
   process_led(40, 29, 31);
   pinMode(FLAME_SENSOR, INPUT);
-  delay(1000);
+  delay(500);
   process_led(0, 0, 0);
 
   // DSM501A Setup
+  display.println(F("I:Setting up DSM501A"));
+  display.display();
   process_led(0, LED_BRIGHTNESS, 0);
   pinMode(pin2_1um, INPUT);
   pinMode(pin4_25um, INPUT);
-  delay(5000);
+  delay(500);
   process_led(0, 0, 0);
 
   analogWrite(SERVER_LED, LED_BRIGHTNESS);
   init_time = millis();
+  display.clearDisplay();
+
 }
 
 void loop() {
+  static unsigned long t_start = millis();
+  float t1, t2, t3;
   const char* data[] = {
-    "Humidity(%): ",
+    "RH(%): ",
     "Temp(C):",
     "Flame: ",
-    "MQ5_LPG(ppm): ",
-    "MQ7_CO(ppm): ",
-    "MQ135_AQ(ppm): ",
+    "LPG(ppm): ",
+    "CO(ppm): ",
+    "AQ(ppm): ",
     "Samples: ",
-    "PM25 (ug/m3): ",
-    "PM10 (ug/m3): ",
+    "PM25(ug/m3): ",
+    "PM10(ug/m3): ",
     "t: ",
   };
+
+  const char* sensor_warnings_msg[] = {
+    "",
+    "",
+    "Flame detected nearby!",
+    "LPG levels rising stay alert!",
+    "CO levels increasing be cautious!",
+    "Air quality worsening take care!",
+    "",
+    "PM2.5 elevated limit exposure!",
+    "PM10 elevated check filters!",
+    ""  
+  };
+
+  const char* sensor_alarms_msg[] = {
+    "",
+    "",
+    "",
+    "Critical LPG detected fire risk!",
+    "Dangerous CO levels evacuate!",
+    "Severe air pollution avoid area!",
+    "",
+    "PM2.5 critical health risk!",
+    "PM10 critical protect lungs!",
+    ""
+  };
+
 
   const int data_size = sizeof(data) / sizeof(data[0]); // Count of data items
   float sensor_values[data_size];
@@ -603,6 +681,7 @@ void loop() {
   String payload = "";
   String alarm = "";
   String warning = "";
+  String message = "";
 
   // DHT
   process_led(40, 25, 0);
@@ -710,13 +789,20 @@ void loop() {
   ++current_sensor;
   process_led(0, 0, 0);
 
+  t1 = millis() - t_start;
+  Serial.print("[DEBUG] t1: ");
+  Serial.println(t1);
+
   // DSM501A
-  static unsigned long t_start = millis();
   static float lowPM25, lowPM1 = 0;
 
   lowPM25 += pulseIn(pin4_25um, LOW) / 1000.0;
   lowPM1 += pulseIn(pin2_1um, LOW) / 1000.0;
   sample_count++;
+
+  t2 = millis() - t_start;
+  Serial.print("[DEBUG] t2: ");
+  Serial.println(t2);
 
   if ((millis() - t_start) >= sample_time) {
     process_led(LED_BRIGHTNESS, 0, LED_BRIGHTNESS);
@@ -787,17 +873,8 @@ void loop() {
 
   process_led(0, 0, 0);
 
-  // Display
-  const int textHeight = 8;    // Height of each line of text
-  const int maxVisibleLines = SCREEN_HEIGHT / textHeight;
-  const int scrollSpeed = 500; // Scroll speed in milliseconds
 
-  // display summary
-  display.clearDisplay();
-  display.setTextSize(1); // Small text size
-  display.setTextColor(SH110X_WHITE); // Draw white text on black background
-  display.setCursor(0, 0); // Start at top-left corner
-
+  // condition logic
   int alarm_count = 0;
   int warning_count = 0;
 
@@ -824,10 +901,67 @@ void loop() {
     analogWrite(ALARM_LED, 0);
     noTone(BUZZER);
   }
+
+  // Display
+  const int textHeight = 8;    // Height of each line of text
+  const int maxVisibleLines = SCREEN_HEIGHT / textHeight;
+  const int scrollSpeed = 100; // Scroll speed in milliseconds
+
+  // display summary
+  display.clearDisplay();
+  display.setTextSize(1); // Small text size
+  display.setTextColor(SH110X_WHITE); // Draw white text on black background
+
+  display.setCursor(0, 0); // Start at top-left corner
   display.print("CONDITION: ");
   display.print(condition);
 
+  // Scroll text on the first line
+  static int scrollOffset = 0; // Horizontal scrolling offset
+  // String message = "This is a long string that needs to be scrolled. ";
+  int charWidth = 6; // Width of one character in pixels for text size 1
+  int displayWidth = 128; // Width of the display in pixels
+  int visibleChars = displayWidth / charWidth; // Maximum characters visible at a time
+
+  for(int i = 0; i < data_size; i++) {
+    if(sensor_alert[i] == 1){
+      message += sensor_warnings_msg[i];
+      message += " ";
+    }
+
+    if(sensor_alert[i] == 2){
+      message += sensor_alarms_msg[i];
+      message += " ";
+    }
+  }
+
+  // Calculate the starting index and number of characters to display
+  int startIdx = scrollOffset / charWidth; // Start at the character corresponding to the offset
+  int endIdx = startIdx + visibleChars; // End index for visible characters
+
+  // Create a substring of the visible portion
+  String visibleText = message.substring(startIdx, min(endIdx, message.length()));
+
+  // Print the visible text
+  display.setCursor(0, 8); // Top-left corner of the display
+  display.print(visibleText);
+
+  // Handle wrapping around when the text scrolls out
+  if (endIdx >= message.length()) {
+    int remainingChars = visibleChars - (message.length() - startIdx); // Characters left to fill
+    String wrapText = message.substring(0, remainingChars);
+    display.print(wrapText);
+  }
+
+  // Update the scroll offset
+  scrollOffset += 6*charWidth;
+  if (scrollOffset >= message.length() * charWidth) {
+    scrollOffset = 0; // Reset offset when the text has fully scrolled
+  }
+
   // Display sensor readings
+  /*
+  */
   const int summary_lines = 3;
   static int offset = 0; // Start offset for scrolling
 
@@ -854,4 +988,8 @@ void loop() {
   }
 
   delay(scrollSpeed); // Adjust scroll speed
+
+  t3 = millis() - t_start;
+  Serial.print("[DEBUG] t3: ");
+  Serial.println(t3);
 }
