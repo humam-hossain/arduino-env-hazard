@@ -277,6 +277,9 @@ void setupESP8266() {
   Serial.println("[INFO] Turning on station mode on ESP8266");
   send_command("AT+CWMODE_CUR=1", 2000, true);
 
+  // disconnect wifi
+  send_command("AT+CWQAP", 3000, true);
+
   // access to wifi
   String ssid = "no internet";
   String password = "humamhumam09";
