@@ -17,6 +17,10 @@ sudo ufw allow 8000 # port 8000
 6. **801S Vibration Sensor**
 7. **ESP8266 ESP-01**
 8. **Arduino Mega 2560**
+9. **SH1106G OLED Display (128x64)**
+10. **Push Buttons (x4)**
+11. **LEDs (RGB and single color)**
+12. **Buzzer**
 
 ### **Power Requirements**
 
@@ -30,8 +34,11 @@ sudo ufw allow 8000 # port 8000
 | **801S Vibration Sensor** | 5V | ~15mA | **~15mA** |
 | **ESP8266 ESP-01** | 3.3V | ~200mA–250mA | **~250mA** |
 | **Arduino Mega 2560** | 5V | ~50mA (base) | **~50mA** |
+| **OLED Display** | 3.3V/5V | ~20mA | **~20mA** |
+| **LEDs** | 5V | ~20mA per LED | **~60mA** (for 3 LEDs) |
+| **Buzzer** | 5V | ~30mA | **~30mA** |
 
-**Total Current Requirement**: ~1.62A
+**Total Current Requirement**: ~1.73A
 
 Adding a **20% safety margin**, the required power supply is **5V 2A** (minimum).
 
@@ -80,6 +87,29 @@ The ESP8266 operates on **3.3V**, and its current draw (200-250mA) exceeds the M
 ---
 
 ### **3. Sensors**
+
+### **OLED Display (SH1106G)**
+
+- **VCC**: Connect to 3.3V or 5V.
+- **GND**: Common ground.
+- **SCL**: Mega SCL (pin 21).
+- **SDA**: Mega SDA (pin 20).
+
+### **Buttons (x4)**
+
+- Connect one leg of each button to a digital pin (50, 51, 52, 53).
+- Connect the other leg to GND.
+
+### **LEDs**
+
+- **RGB LED**: Connect R, G, and B pins to PWM-capable digital pins (e.g., 6, 7, 42).
+- **Alarm/Server LEDs**: Connect to digital pins (e.g., 44, 48).
+- Use a current-limiting resistor (e.g., 220Ω) for each LED.
+
+### **Buzzer**
+
+- Connect the positive leg to a digital pin (e.g., 5).
+- Connect the negative leg to GND.
 
 ### **MQ Sensors (4x)**
 
